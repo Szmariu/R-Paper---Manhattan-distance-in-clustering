@@ -1,30 +1,168 @@
 ---
-title: "Does Manhttan distance have any use in Unsupervised Learning?"
+title: "Performance impact of distance measures in clustering analisys"
 author: "Michał Szałański"
 date: "10 lutego 2019"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+## Introduction
+Differences beetwen metrics
+
+
+## Dataset overview
+
+Before we can import the data set, we have to load the required libraries.
+
+```{r, message = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(cluster)
+library(factoextra)
+library(flexclust)
+library(fpc)
+library(clustertend)
+library(ClusterR)
+library(NbClust)
+library(microbenchmark)
+library(multcomp)
+
+options(scipen=999) #avoiding e10 notation
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Loading the data that was cleaned and prepared as a part of an another project. 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+```{r}
+# Importing main data table, NaN are ommited (about 10% of all data)
+mainTable <- na.omit(read.csv("data/clean_googleplaystore.csv",header=TRUE))
 
-```{r cars}
-summary(cars)
+# Import the ratings, NaN are ommited (about 30% of all data)
+ratingsTable <- na.omit(read.csv("data/clean_googleplaystore_user_reviews.csv",header=TRUE))
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+After loading the dataset, we can look at it's shape.
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+# Some basic summary
+dim(mainTable)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The data consists of 7 671 observations and 11 variables.
+
+We can take a look at
+```{r}
+# Some basic summary
+str(mainTable)
+```
+
+
+
+
+```{r}
+# Some basic summary
+summary(mainTable)
+```
+
+
+## Empyrical study
+
+## Conclusions
+
+```{r}
+# Subsetting the average reviews and number of reviews
+clusteringData <- mainTable[,c(2,3)]
+```
+
+
+```{r, cache = TRUE}
+# Finding the optimal number of clusters
+c3<-NbClust(clusteringData , distance="euclidean", min.nc=2, max.nc=8, method="complete", index="ch")
+c3$Best.nc
+```
+
+##### Comparing the speed in distance matrixes ######
+# Sample distance matrix
+
+```{r, cache = TRUE}
+timeDistanceMatrix <- microbenchmark(
+  dist(clusteringData, method = "euclidean"),
+  dist(clusteringData, method = "manhattan"),
+  dist(clusteringData, method = "canberra"),
+  dist(clusteringData, method = "minkowski"),
+  times=200)
+```
+
+```{r}
+timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s")
+ggplot2::autoplot(timeDistanceMatrix)
+```
+
+# Investigating the outliers - evenly distributed ?
+
+```{r}
+timeDistanceMatrix %>% 
+  filter(timeDistanceMatrix$expr == 'dist(clusteringData, method = "euclidean")') %>% 
+  droplevels.data.frame() %>%
+  ggplot(aes(y=time, x=c(1:200))) + geom_point()
+```
+
+  ###### Comparing the speed in CClust ######
+
+```{r, cache = TRUE}
+timeCClust <- microbenchmark(
+  cclust(clusteringData, k = 6, dist = "euclidean", simple = FALSE, save.data=TRUE),
+  cclust(clusteringData, k = 6, dist = "manhattan", simple = FALSE, save.data=TRUE),
+  times=10)
+```
+
+
+```{r}
+timeCClustResults <- print(timeCClust, unit = "s")
+ggplot2::autoplot(timeCClust)
+```
+
+   #### Comparing the speed in Clara ######
+# Sample clustering
+```{r}
+sampleClara<-clara(clusteringData, 6, metric="euclidean", stand=FALSE, samples=50,
+                   sampsize=200, trace=0, medoids.x=TRUE,
+                   rngR=TRUE, pamLike=FALSE, correct.d=TRUE) #cluster::
+fviz_cluster(sampleClara, ellipse.type = "t", geom = "point", pointsize = 1 )
+fviz_silhouette(sampleClara)
+```
+
+# Speed test
+
+```{r, cache = TRUE}
+timeClara <- microbenchmark(
+  clara(clusteringData, 6, metric="euclidean", stand=FALSE, samples=50,
+        sampsize=200, trace=0, medoids.x=TRUE,
+        rngR=TRUE, pamLike=FALSE, correct.d=TRUE),
+  clara(clusteringData, 6, metric="manhattan", stand=FALSE, samples=50,
+        sampsize=200, trace=0, medoids.x=TRUE,
+        rngR=TRUE, pamLike=FALSE, correct.d=TRUE),
+  times=100)
+```
+
+```{r}
+timeClaraResults <- print(timeClara, unit = "s", order = 'mean', signif = 3)
+ggplot2::autoplot(timeClara)
+```
+
+# T test
+
+```{r}
+x <- timeClara %>% filter(timeClara$expr == 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
+y <- timeClara %>% filter(timeClara$expr != 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
+t.test(x$time,y$time)
+```
+
+## References
+
+echo=FALSE
+ <http://rmarkdown.rstudio.com>.
+
+**Knit**

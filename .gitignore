@@ -4,3 +4,10 @@
 .Ruserdata
 
 notes\.txt
+
+*.RData
+
+markdown_cache
+markdown_files
+
+*.html
