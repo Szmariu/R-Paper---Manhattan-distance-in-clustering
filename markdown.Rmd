@@ -1,13 +1,38 @@
 ---
-title: "Performance impact of distance measures in clustering analisys"
+title: "In defence of Manhattan Distance - on the performance impact of distance measures in clustering analisys"
 author: "Michał Szałański"
 date: "10 lutego 2019"
 output: html_document
 ---
 
 ## Introduction
-Differences beetwen metrics
+### Euclidian distance
 
+The **euclidian distance** is "straght line" distance, calcualted as a square root of a sum of squared differences beetwen each axis.   
+
+```{r, echo=FALSE, out.width = "500px", fig.align = "center"}
+knitr::include_graphics("assets/euclidian.svg")
+```
+
+*The equation for the euclidian distance. Source: Wikipedia*
+
+### Manhattan distance
+The **manhatan distance** is calculated as a sum of unsigned lengths on each axis. Because it uses modulus instead of exponenciation and rooting, it is said to be more roboust to outliers. Aditionally, because modulus is much faster to compute than exponenciation and square rooting, it may give a performance increase in certain applications.
+ 
+```{r, echo=FALSE, out.width = "300px", fig.align = "center"}
+knitr::include_graphics("assets/Manhattan_distance.svg")
+```
+ 
+*Red, blue and yellow lines represent same dsitances in the manhattan geometry, and the green line represents the euclidian distance. Source: Wikipedia*
+
+### Canberra distance
+Canberra distance is a weighted version of the manhattan distance. It is much more robust to outliers than other metrics, but is very sensible to values around 0. This feature makes it a good tool to detect some kinds of outliers.
+
+```{r, echo=FALSE, out.width = "200px", fig.align = "center"}
+knitr::include_graphics("assets/canberra.svg")
+```
+
+*The equation for the canberra distance. Source: Wikipedia*
 
 ## Dataset overview
 
@@ -32,7 +57,7 @@ options(scipen=999) #avoiding e10 notation
 ```
 
 
-Loading the data that was cleaned and prepared as a part of an another project. 
+This data was cleaned and prepared as a part of an another project. The source is [Kaggle]<https://www.kaggle.com/lava18/google-play-store-apps>.
 
 ```{r}
 # Importing main data table, NaN are ommited (about 10% of all data)
@@ -69,22 +94,34 @@ summary(mainTable)
 
 ## Empyrical study
 
-## Conclusions
+### Data preparation
+
+First, we want to extract the two variables that we'll be working on - average rating, and number of reviews.
 
 ```{r}
-# Subsetting the average reviews and number of reviews
 clusteringData <- mainTable[,c(2,3)]
+dim(clusteringData)
 ```
 
+Then, we run NbClust to find a optimal number of clusters. Since our main goal is to evaluate performance, the number of clusters will stay the same for different clustering methods, and distance metrics.
 
-```{r, cache = TRUE}
-# Finding the optimal number of clusters
+```{r, optimal number of clusters, cache = TRUE}
 c3<-NbClust(clusteringData , distance="euclidean", min.nc=2, max.nc=8, method="complete", index="ch")
 c3$Best.nc
 ```
 
-##### Comparing the speed in distance matrixes ######
-# Sample distance matrix
+It turns out, that for this data, the optimal number of clusters is 6. 
+
+## First perfomance comparison - distance metrics
+### Sample distance matrix
+Since we want to compare performance of different metrics, the most significant diferences should occour when calculating the distance matrixes. This will allow to ignore other factors, such as the implementation of different metrics in the clustering algorithms (we'll get back to that later).
+
+```{r, sample distance matrix, cache = TRUE}
+head(dist(clusteringData, method = "euclidean"))
+```
+
+### Performance evaluation
+Here, I'm using the microbenrchmark function from microbenchmark package to calculate distance matrixes, each 200 times. The result is a table containing the times for each run. Microbenchmark is great for this application, because it's optimised to exclude any overhead, such as checking system time. Authors claim that it can record differences on the scale of nanoseconds. 
 
 ```{r, cache = TRUE}
 timeDistanceMatrix <- microbenchmark(
@@ -95,12 +132,17 @@ timeDistanceMatrix <- microbenchmark(
   times=200)
 ```
 
+### Results
+One we run the tests, we can display the results in a table format, and as a graph.
+
 ```{r}
 timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s")
 ggplot2::autoplot(timeDistanceMatrix)
 ```
 
-# Investigating the outliers - evenly distributed ?
+- Tutaj interpretacja -
+
+### Investigating the outliers - evenly distributed ?
 
 ```{r}
 timeDistanceMatrix %>% 
@@ -160,9 +202,28 @@ y <- timeClara %>% filter(timeClara$expr != 'clara(clusteringData, 6, metric = "
 t.test(x$time,y$time)
 ```
 
+
+## What about (ten algo który nie działa)
+
 ## References
+
+
+
+
+
+
+
+
+
 
 echo=FALSE
  <http://rmarkdown.rstudio.com>.
 
 **Knit**
+
+
+# This is a test 
+## This is a test 
+### This is a test 
+#### This is a test 
+##### This is a test 
