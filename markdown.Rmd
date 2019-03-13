@@ -5,7 +5,11 @@ date: "10 lutego 2019"
 output: html_document
 ---
 
-## Introduction
+# Introduction
+## Goal of the paper
+
+
+## Theoretical background
 ### Euclidian distance
 
 The **euclidian distance** is "straght line" distance, calcualted as a square root of a sum of squared differences beetwen each axis.   
@@ -26,7 +30,7 @@ knitr::include_graphics("assets/Manhattan_distance.svg")
 *Red, blue and yellow lines represent same dsitances in the manhattan geometry, and the green line represents the euclidian distance. Source: Wikipedia*
 
 ### Canberra distance
-Canberra distance is a weighted version of the manhattan distance. It is much more robust to outliers than other metrics, but is very sensible to values around 0. This feature makes it a good tool to detect some kinds of outliers.
+Canberra distance is a weighted version of the manhattan distance. It is much more robust to outliers than other metrics, but is very sensible to values around 0. This feature makes it a good tool to detect some kinds of outliers. It is used mostly in spam detection software. Since it's more complex than manhattan distance, it may be slower in some applications.
 
 ```{r, echo=FALSE, out.width = "200px", fig.align = "center"}
 knitr::include_graphics("assets/canberra.svg")
@@ -34,11 +38,11 @@ knitr::include_graphics("assets/canberra.svg")
 
 *The equation for the canberra distance. Source: Wikipedia*
 
-## Dataset overview
+# Dataset overview
 
-Before we can import the data set, we have to load the required libraries.
-
+## Libraries
 ```{r, message = FALSE}
+library(plyr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -52,12 +56,13 @@ library(ClusterR)
 library(NbClust)
 library(microbenchmark)
 library(multcomp)
+library(knitr)
 
 options(scipen=999) #avoiding e10 notation
 ```
 
-
-This data was cleaned and prepared as a part of an another project. The source is [Kaggle]<https://www.kaggle.com/lava18/google-play-store-apps>.
+## Importing datasets
+This data was cleaned and prepared as a part of an another project. The source is [Kaggle](https://www.kaggle.com/lava18/google-play-store-apps), and it's a scrapping of a sample of Google Play Store apps.
 
 ```{r}
 # Importing main data table, NaN are ommited (about 10% of all data)
@@ -67,34 +72,30 @@ mainTable <- na.omit(read.csv("data/clean_googleplaystore.csv",header=TRUE))
 ratingsTable <- na.omit(read.csv("data/clean_googleplaystore_user_reviews.csv",header=TRUE))
 ```
 
-
+## Data overview
 After loading the dataset, we can look at it's shape.
-
 ```{r}
-# Some basic summary
 dim(mainTable)
 ```
 
-The data consists of 7 671 observations and 11 variables.
+The data consists of 7 671 observations and 11 variables. Overall, this gives us 84 381 data points.
 
-We can take a look at
+Next, we can see what are the variables in this dataset.   
 ```{r}
-# Some basic summary
 str(mainTable)
 ```
 
+There are 11 columns, 5 of them are continous, the rest are factors. We'll focus on the continous variables, since they are the easies to cluster.
 
-
-
+We can take a look at a summary of the continous variables.  
 ```{r}
-# Some basic summary
-summary(mainTable)
+summary(mainTable[,c(2,3,4,7,11)])
 ```
 
+The ratings count, app size and price variables have some seroius outliers, but this shouldn't affect the results of performance analisys in any significant way. 
 
-## Empyrical study
-
-### Data preparation
+# Empyrical study
+## Data preparation
 
 First, we want to extract the two variables that we'll be working on - average rating, and number of reviews.
 
@@ -121,7 +122,7 @@ head(dist(clusteringData, method = "euclidean"))
 ```
 
 ### Performance evaluation
-Here, I'm using the microbenrchmark function from microbenchmark package to calculate distance matrixes, each 200 times. The result is a table containing the times for each run. Microbenchmark is great for this application, because it's optimised to exclude any overhead, such as checking system time. Authors claim that it can record differences on the scale of nanoseconds. 
+Here, I'm using the microbenrchmark function from microbenchmark package to calculate distance matrixes, each one 200 times. The result is a table containing the times for each run. Microbenchmark is a great tool for this application, because it's optimised to exclude any overhead, such as checking system time. Authors claim that it can record differences on the scale of nanoseconds. 
 
 ```{r, cache = TRUE}
 timeDistanceMatrix <- microbenchmark(
@@ -135,23 +136,35 @@ timeDistanceMatrix <- microbenchmark(
 ### Results
 One we run the tests, we can display the results in a table format, and as a graph.
 
-```{r}
-timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s")
+```{r, results='hide'}
+timeDistanceMatrix$expr <- revalue(timeDistanceMatrix$expr, c('dist(clusteringData, method = "euclidean")' = "Euclidian",
+                                          'dist(clusteringData, method = "manhattan")' = "Manhattan",
+                                          'dist(clusteringData, method = "canberra")' = 'Canberra',
+                                          'dist(clusteringData, method = "minkowski")' = 'Minkowski'))
+timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s", order = 'mean', signif = 3)
+```
+
+```{r, fig.align='center'}
+kable(timeDistanceMatrixResults)
 ggplot2::autoplot(timeDistanceMatrix)
 ```
 
+
 - Tutaj interpretacja -
 
-### Investigating the outliers - evenly distributed ?
+### Investigating the outliers - how are they distributed?
 
-```{r}
+From the graph above, we can see that there are some outliers in each method. Maybe these are the first runs, after which the dist() function does some caching or other optimisation? To test this, we can look at the times 
+ 
+```{r, fig.align='center'}
 timeDistanceMatrix %>% 
-  filter(timeDistanceMatrix$expr == 'dist(clusteringData, method = "euclidean")') %>% 
+  filter(timeDistanceMatrix$expr == 'Euclidian') %>% 
   droplevels.data.frame() %>%
   ggplot(aes(y=time, x=c(1:200))) + geom_point()
 ```
 
-  ###### Comparing the speed in CClust ######
+## Second perfomance comparison - CClust
+### Performance evaluation
 
 ```{r, cache = TRUE}
 timeCClust <- microbenchmark(
@@ -160,14 +173,16 @@ timeCClust <- microbenchmark(
   times=10)
 ```
 
+### Results
 
 ```{r}
-timeCClustResults <- print(timeCClust, unit = "s")
+timeCClustResults <- print(timeCClust, unit = "s", order = 'mean', signif = 3)
 ggplot2::autoplot(timeCClust)
 ```
 
-   #### Comparing the speed in Clara ######
-# Sample clustering
+## Second perfomance comparison - Clara
+
+### Sample clustering in Clara
 ```{r}
 sampleClara<-clara(clusteringData, 6, metric="euclidean", stand=FALSE, samples=50,
                    sampsize=200, trace=0, medoids.x=TRUE,
@@ -176,7 +191,7 @@ fviz_cluster(sampleClara, ellipse.type = "t", geom = "point", pointsize = 1 )
 fviz_silhouette(sampleClara)
 ```
 
-# Speed test
+### Performance evaluation
 
 ```{r, cache = TRUE}
 timeClara <- microbenchmark(
@@ -189,12 +204,14 @@ timeClara <- microbenchmark(
   times=100)
 ```
 
+### Results
+
 ```{r}
 timeClaraResults <- print(timeClara, unit = "s", order = 'mean', signif = 3)
 ggplot2::autoplot(timeClara)
 ```
 
-# T test
+### T-test
 
 ```{r}
 x <- timeClara %>% filter(timeClara$expr == 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
@@ -206,24 +223,3 @@ t.test(x$time,y$time)
 ## What about (ten algo który nie działa)
 
 ## References
-
-
-
-
-
-
-
-
-
-
-echo=FALSE
- <http://rmarkdown.rstudio.com>.
-
-**Knit**
-
-
-# This is a test 
-## This is a test 
-### This is a test 
-#### This is a test 
-##### This is a test 

@@ -1,4 +1,5 @@
 ######LIBRARIES######
+library(plyr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -46,6 +47,10 @@ timeDistanceMatrix <- microbenchmark(
   times=200)
  
 #Results
+timeDistanceMatrix$expr <- revalue(timeDistanceMatrix$expr, c('dist(clusteringData, method = "euclidean")' = "Euclidian",
+                                          'dist(clusteringData, method = "manhattan")' = "Manhattan",
+                                          'dist(clusteringData, method = "canberra")' = 'Canberra',
+                                          'dist(clusteringData, method = "minkowski")' = 'Minkowski'))
 timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s")
 ggplot2::autoplot(timeDistanceMatrix)
 
