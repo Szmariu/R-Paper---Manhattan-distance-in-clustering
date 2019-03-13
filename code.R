@@ -13,6 +13,7 @@ library(ClusterR)
 library(NbClust)
 library(microbenchmark)
 library(multcomp)
+library(wordspace)
 
 options(scipen=999) #avoiding e10 notation
 
@@ -24,7 +25,7 @@ mainTable <- na.omit(read.csv("data/clean_googleplaystore.csv",header=TRUE))
 ratingsTable <- na.omit(read.csv("data/clean_googleplaystore_user_reviews.csv",header=TRUE))
 
 # Some basic summary
-str(mainTable)
+a <- str(mainTable)
 summary(mainTable)
 
 ######DATA PROCESSING######
@@ -71,6 +72,9 @@ timeCClust <- microbenchmark(
 timeCClustResults <- print(timeCClust, unit = "s")
 ggplot2::autoplot(timeCClust)
 
+sprintf("%1.2f%%", (timeCClustResults[2,5] - timeCClustResults[1,5]) / timeCClustResults[1,5]*100)
+
+
 
     #### Comparing the speed in Clara ######
 # Sample clustering
@@ -90,13 +94,27 @@ timeClara <- microbenchmark(
         rngR=TRUE, pamLike=FALSE, correct.d=TRUE),
   times=100)
 
-# Results
-timeClaraResults <- print(timeClara, unit = "s", order = 'mean', signif = 3)
+### Results
+
+
+timeClara$expr <- revalue(timeClara$expr, c('clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)' = "Euclidian",
+                                            'clara(clusteringData, 6, metric = "manhattan", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)' = "Manhattan"))
+timeClaraResults <- print(timeClara, unit = "s", order = 'median', signif = 3)
+
+kable(timeClaraResults)
 ggplot2::autoplot(timeClara)
 
-# T test
-x <- timeClara %>% filter(timeClara$expr == 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
-y <- timeClara %>% filter(timeClara$expr != 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
+
+### T-test
+
+x <- timeClara %>% filter(timeClara$expr == 'Euclidian') %>% transmute(time = time/1000000000)
+y <- timeClara %>% filter(timeClara$expr == 'Manhattan') %>% transmute(time = time/1000000000)
 t.test(x$time,y$time)
+
+
+
+
+
+
 
 

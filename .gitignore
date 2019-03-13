@@ -11,3 +11,5 @@ markdown_cache
 markdown_files
 
 *.html
+
+\.RDataTmp

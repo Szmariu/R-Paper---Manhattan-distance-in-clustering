@@ -1,14 +1,14 @@
 ---
-title: "In defence of Manhattan Distance - on the performance impact of distance measures in clustering analisys"
+title: "In Defence of Manhattan Distance - On the Performance Impact of Distance Measures in Clustering Analisys"
 author: "Michał Szałański"
-date: "10 lutego 2019"
+date: "6 lutego 2019"
 output: html_document
 ---
 
 
 # Introduction
 ## Goal of the paper
-
+The idea for this paper came to me when I first learned about the different distance measures. During that class it was said, that no one knows what is the usecase of the manhattan distance metric. That got me curious, so I search the internet for papers and stack overflow posts that could tell more on this topic. One of the few ideads that I was able to find, was that it may lead to increased performance because it uses modulus, and not exponanciation. In this paper, I would like to test this hypothesis, comparing manhattan distance to euclidian and a few other distance metrics, to see if it makes a difference in both syntetic benchmarks and real-worlds examples. 
 
 ## Theoretical background
 ### Euclidian distance
@@ -47,8 +47,8 @@ library(plyr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-library(gridExtra)
-library(cluster)
+#library(gridExtra)
+#library(cluster)
 library(factoextra)
 library(flexclust)
 library(fpc)
@@ -88,12 +88,12 @@ str(mainTable)
 
 There are 11 columns, 5 of them are continous, the rest are factors. We'll focus on the continous variables, since they are the easies to cluster.
 
-We can take a look at a summary of the continous variables.  
+We can take a look at a summary of these continous variables.  
 ```{r}
 kable(summary(mainTable[,c(2,3,4,7,11)]))
 ```
 
-The ratings count, app size and price variables have some seroius outliers, but this shouldn't affect the results of performance analisys in any significant way. 
+The ratings count, app size and price variables have some serious outliers, but this shouldn't affect the results of performance analisys in any significant way. 
 
 # Empyrical study
 ## Data preparation
@@ -123,15 +123,15 @@ head(dist(clusteringData, method = "euclidean"))
 ```
 
 ### Performance evaluation
-Here, I'm using the microbenrchmark function from microbenchmark package to calculate distance matrixes, each one 200 times. The result is a table containing the times for each run. Microbenchmark is a great tool for this application, because it's optimised to exclude any overhead, such as checking system time. Authors claim that it can record differences on the scale of nanoseconds. 
+Here, I'm using the microbenrchmark function from microbenchmark package to calculate distance matrixes, each one 300 times. The result is a table containing the times for each run. Microbenchmark is a great tool for this application, because it's optimised to exclude any overhead, such as checking system time. Authors claim that it can record differences on the scale of nanoseconds. 
 
-```{r, cache = TRUE}
+```{r, Distance Matrix performance, cache = TRUE}
 timeDistanceMatrix <- microbenchmark(
   dist(clusteringData, method = "euclidean"),
   dist(clusteringData, method = "manhattan"),
   dist(clusteringData, method = "canberra"),
   dist(clusteringData, method = "minkowski"),
-  times=200)
+  times=300)
 ```
 
 ### Results
@@ -147,11 +147,16 @@ timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s", order = 'medi
 
 ```{r, fig.align='center', message = FALSE}
 kable(timeDistanceMatrixResults)
+```
+
+The results are promising - the manhattan distance is noticabely faster than all other distance measures. When comparing medians, the euclidian distance is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[2,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower, the canrerra is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[3,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower. By far the slowest is the Minkowski distance measure - it's **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[4,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower than manhatta distance. Results of this "syntetic" benchmark show as, that is a best case scenario, we can expect clustering algorithms to run about 10% faster, using manhattan distance, than euclidian. 
+
+```{r, fig.align='center', message = FALSE}
+
 ggplot2::autoplot(timeDistanceMatrix)
 ```
 
-
-- Tutaj interpretacja -
+We can see the differences visually. There are strange "tails" on each test - these are outliers that will be analised later. During the interpretation above, I've compared medians, to filter out this strange behaviour.
 
 ### T-test
 
@@ -161,19 +166,27 @@ y <- timeDistanceMatrix %>% filter(timeDistanceMatrix$expr == 'Manhattan') %>% t
 t.test(x$time,y$time)
 ```
 
+According to the T-test, we can reject the null hypothesis, which says that the means of this two tests are equal. The resulting difference is statistically significant, with a very low p-value.
+
 ### Investigating the outliers - how are they distributed?
 
-From the graph above, we can see that there are some outliers in each method. Maybe these are the first runs, after which the dist() function does some caching or other optimisation? To test this, we can look at the times 
+From the graph above, we can see that there are some outliers in each method. Maybe these are the first runs, after which the dist() function does some caching or other optimisation? To test this, we can look at the run times in order. 
  
 ```{r, fig.align='center'}
 timeDistanceMatrix %>% 
   filter(timeDistanceMatrix$expr == 'Euclidian') %>% 
   droplevels.data.frame() %>%
-  ggplot(aes(y=time, x=c(1:200))) + geom_point()
+  ggplot(aes(y=time, x=c(1:300))) + geom_point()+ xlab('Time') + ylab('Runtime')
 ```
 
+It doesn't seem like that's the case - the outliers are scattered roughly evenly across the time. I wasn't able to find any information on this - maybe it is caused by a bug in the dist() function, or an backgroud app taking the focus of the processor for a couple of miliseconds (eg. updaters, or cloud syncing apps).
+
 ## Second perfomance comparison - CClust
+### Sample clustering in CClust
+
+
 ### Performance evaluation
+After a syntetic benchmark that was the distance matrixes, we can move on to a first real-world example. The CClust function from flexclust package can perform the kmeans clustering. As of today, it supports two distance measures - euclidian and manhattan. Both tests were run 200 times, with the number of clusters set to 6 (as was estabilished by the NbClust). The results are then saved for futher analisys.
 
 ```{r, CCLust performance, cache = TRUE, message=FALSE}
 timeCClust <- microbenchmark(
@@ -192,8 +205,15 @@ timeCClustResults <- print(timeCClust, unit = "s", order = 'median', signif = 3)
 
 ```{r, fig.align='center', message = FALSE}
 kable(timeCClustResults)
+```
+
+The results are somewhat suprising. Contrary to the experiment on the distance matrixes, it seems that manhattan distance is slower in CClust algorithm, by **`r sprintf("%1.2f%%", (timeCClustResults[2,5] - timeCClustResults[1,5]) / timeCClustResults[1,5]*100) `**.  This maybe caused by the difference in implementation - in euclidian setting, the cluster means are the centroids, and in the manhattan, the column-wise cluster medians are used as centroids.  
+
+```{r, fig.align='center', message = FALSE}
 ggplot2::autoplot(timeCClust)
 ```
+
+Strange outliers can be observed, simmilar to these in distance matrixes. Maybe CClust uses the dist() function a as part of it's algorithm?
 
 ### T-test
 
@@ -203,8 +223,9 @@ y <- timeCClust %>% filter(timeCClust$expr == 'Manhattan') %>% transmute(time = 
 t.test(x$time,y$time)
 ```
 
+According to the T-test, we can say that the resulting difference is statistically significant, with a very low p-value.
 
-## Second perfomance comparison - Clara
+## Third perfomance comparison - Clara
 
 ### Sample clustering in Clara
 ```{r, fig.align='center', comment=NA}
@@ -253,4 +274,7 @@ t.test(x$time,y$time)
 
 ## What about (ten algo który nie działa)
 
-## References
+
+# Conclusions
+
+# References
