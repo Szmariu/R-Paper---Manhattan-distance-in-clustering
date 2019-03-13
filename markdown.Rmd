@@ -5,6 +5,7 @@ date: "10 lutego 2019"
 output: html_document
 ---
 
+
 # Introduction
 ## Goal of the paper
 
@@ -18,7 +19,7 @@ The **euclidian distance** is "straght line" distance, calcualted as a square ro
 knitr::include_graphics("assets/euclidian.svg")
 ```
 
-*The equation for the euclidian distance. Source: Wikipedia*
+<center>*The equation for the euclidian distance. Source: Wikipedia*</center>
 
 ### Manhattan distance
 The **manhatan distance** is calculated as a sum of unsigned lengths on each axis. Because it uses modulus instead of exponenciation and rooting, it is said to be more roboust to outliers. Aditionally, because modulus is much faster to compute than exponenciation and square rooting, it may give a performance increase in certain applications.
@@ -27,7 +28,7 @@ The **manhatan distance** is calculated as a sum of unsigned lengths on each axi
 knitr::include_graphics("assets/Manhattan_distance.svg")
 ```
  
-*Red, blue and yellow lines represent same dsitances in the manhattan geometry, and the green line represents the euclidian distance. Source: Wikipedia*
+<center>*Red, blue and yellow lines represent same dsitances in the manhattan geometry, and the green line represents the euclidian distance. Source: Wikipedia*</center>
 
 ### Canberra distance
 Canberra distance is a weighted version of the manhattan distance. It is much more robust to outliers than other metrics, but is very sensible to values around 0. This feature makes it a good tool to detect some kinds of outliers. It is used mostly in spam detection software. Since it's more complex than manhattan distance, it may be slower in some applications.
@@ -36,7 +37,7 @@ Canberra distance is a weighted version of the manhattan distance. It is much mo
 knitr::include_graphics("assets/canberra.svg")
 ```
 
-*The equation for the canberra distance. Source: Wikipedia*
+<center>*The equation for the canberra distance. Source: Wikipedia*</center>
 
 # Dataset overview
 
@@ -61,7 +62,7 @@ library(knitr)
 options(scipen=999) #avoiding e10 notation
 ```
 
-## Importing datasets
+## Importing the dataset
 This data was cleaned and prepared as a part of an another project. The source is [Kaggle](https://www.kaggle.com/lava18/google-play-store-apps), and it's a scrapping of a sample of Google Play Store apps.
 
 ```{r}
@@ -74,14 +75,14 @@ ratingsTable <- na.omit(read.csv("data/clean_googleplaystore_user_reviews.csv",h
 
 ## Data overview
 After loading the dataset, we can look at it's shape.
-```{r}
+```{r, comment=NA}
 dim(mainTable)
 ```
 
 The data consists of 7 671 observations and 11 variables. Overall, this gives us 84 381 data points.
 
 Next, we can see what are the variables in this dataset.   
-```{r}
+```{r, comment=NA}
 str(mainTable)
 ```
 
@@ -89,7 +90,7 @@ There are 11 columns, 5 of them are continous, the rest are factors. We'll focus
 
 We can take a look at a summary of the continous variables.  
 ```{r}
-summary(mainTable[,c(2,3,4,7,11)])
+kable(summary(mainTable[,c(2,3,4,7,11)]))
 ```
 
 The ratings count, app size and price variables have some seroius outliers, but this shouldn't affect the results of performance analisys in any significant way. 
@@ -99,14 +100,14 @@ The ratings count, app size and price variables have some seroius outliers, but 
 
 First, we want to extract the two variables that we'll be working on - average rating, and number of reviews.
 
-```{r}
+```{r, comment=NA}
 clusteringData <- mainTable[,c(2,3)]
 dim(clusteringData)
 ```
 
 Then, we run NbClust to find a optimal number of clusters. Since our main goal is to evaluate performance, the number of clusters will stay the same for different clustering methods, and distance metrics.
 
-```{r, optimal number of clusters, cache = TRUE}
+```{r, optimal number of clusters, cache = TRUE, comment=NA}
 c3<-NbClust(clusteringData , distance="euclidean", min.nc=2, max.nc=8, method="complete", index="ch")
 c3$Best.nc
 ```
@@ -117,7 +118,7 @@ It turns out, that for this data, the optimal number of clusters is 6.
 ### Sample distance matrix
 Since we want to compare performance of different metrics, the most significant diferences should occour when calculating the distance matrixes. This will allow to ignore other factors, such as the implementation of different metrics in the clustering algorithms (we'll get back to that later).
 
-```{r, sample distance matrix, cache = TRUE}
+```{r, sample distance matrix, cache = TRUE, comment=NA}
 head(dist(clusteringData, method = "euclidean"))
 ```
 
@@ -141,16 +142,24 @@ timeDistanceMatrix$expr <- revalue(timeDistanceMatrix$expr, c('dist(clusteringDa
                                           'dist(clusteringData, method = "manhattan")' = "Manhattan",
                                           'dist(clusteringData, method = "canberra")' = 'Canberra',
                                           'dist(clusteringData, method = "minkowski")' = 'Minkowski'))
-timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s", order = 'mean', signif = 3)
+timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s", order = 'median', signif = 3)
 ```
 
-```{r, fig.align='center'}
+```{r, fig.align='center', message = FALSE}
 kable(timeDistanceMatrixResults)
 ggplot2::autoplot(timeDistanceMatrix)
 ```
 
 
 - Tutaj interpretacja -
+
+### T-test
+
+```{r, comment=NA}
+x <- timeDistanceMatrix %>% filter(timeDistanceMatrix$expr == 'Euclidian') %>% transmute(time = time/1000000000)
+y <- timeDistanceMatrix %>% filter(timeDistanceMatrix$expr == 'Manhattan') %>% transmute(time = time/1000000000)
+t.test(x$time,y$time)
+```
 
 ### Investigating the outliers - how are they distributed?
 
@@ -166,24 +175,39 @@ timeDistanceMatrix %>%
 ## Second perfomance comparison - CClust
 ### Performance evaluation
 
-```{r, cache = TRUE}
+```{r, CCLust performance, cache = TRUE, message=FALSE}
 timeCClust <- microbenchmark(
   cclust(clusteringData, k = 6, dist = "euclidean", simple = FALSE, save.data=TRUE),
   cclust(clusteringData, k = 6, dist = "manhattan", simple = FALSE, save.data=TRUE),
-  times=10)
+  times=200)
 ```
 
 ### Results
 
-```{r}
-timeCClustResults <- print(timeCClust, unit = "s", order = 'mean', signif = 3)
+```{r, results='hide'}
+timeCClust$expr <- revalue(timeCClust$expr, c('cclust(clusteringData, k = 6, dist = \"euclidean\", simple = FALSE,      save.data = TRUE)' = "Euclidian",
+                                          'cclust(clusteringData, k = 6, dist = \"manhattan\", simple = FALSE,      save.data = TRUE)' = "Manhattan"))
+timeCClustResults <- print(timeCClust, unit = "s", order = 'median', signif = 3)
+```
+
+```{r, fig.align='center', message = FALSE}
+kable(timeCClustResults)
 ggplot2::autoplot(timeCClust)
 ```
+
+### T-test
+
+```{r, comment=NA}
+x <- timeCClust %>% filter(timeCClust$expr == 'Euclidian') %>% transmute(time = time/1000000000)
+y <- timeCClust %>% filter(timeCClust$expr == 'Manhattan') %>% transmute(time = time/1000000000)
+t.test(x$time,y$time)
+```
+
 
 ## Second perfomance comparison - Clara
 
 ### Sample clustering in Clara
-```{r}
+```{r, fig.align='center', comment=NA}
 sampleClara<-clara(clusteringData, 6, metric="euclidean", stand=FALSE, samples=50,
                    sampsize=200, trace=0, medoids.x=TRUE,
                    rngR=TRUE, pamLike=FALSE, correct.d=TRUE) #cluster::
@@ -193,7 +217,7 @@ fviz_silhouette(sampleClara)
 
 ### Performance evaluation
 
-```{r, cache = TRUE}
+```{r, Clara performance, cache = TRUE}
 timeClara <- microbenchmark(
   clara(clusteringData, 6, metric="euclidean", stand=FALSE, samples=50,
         sampsize=200, trace=0, medoids.x=TRUE,
@@ -201,21 +225,28 @@ timeClara <- microbenchmark(
   clara(clusteringData, 6, metric="manhattan", stand=FALSE, samples=50,
         sampsize=200, trace=0, medoids.x=TRUE,
         rngR=TRUE, pamLike=FALSE, correct.d=TRUE),
-  times=100)
+  times=600)
 ```
 
 ### Results
 
-```{r}
-timeClaraResults <- print(timeClara, unit = "s", order = 'mean', signif = 3)
+```{r, results='hide'}
+timeClara$expr <- revalue(timeClara$expr, c('clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)' = "Euclidian",
+                                          'clara(clusteringData, 6, metric = "manhattan", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)' = "Manhattan"))
+timeClaraResults <- print(timeClara, unit = "s", order = 'median', signif = 3)
+```
+
+```{r, fig.align='center', message = FALSE}
+kable(timeClaraResults)
 ggplot2::autoplot(timeClara)
 ```
 
+
 ### T-test
 
-```{r}
-x <- timeClara %>% filter(timeClara$expr == 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
-y <- timeClara %>% filter(timeClara$expr != 'clara(clusteringData, 6, metric = "euclidean", stand = FALSE,      samples = 50, sampsize = 200, trace = 0, medoids.x = TRUE,      rngR = TRUE, pamLike = FALSE, correct.d = TRUE)')
+```{r, comment=NA}
+x <- timeClara %>% filter(timeClara$expr == 'Euclidian') %>% transmute(time = time/1000000000)
+y <- timeClara %>% filter(timeClara$expr == 'Manhattan') %>% transmute(time = time/1000000000)
 t.test(x$time,y$time)
 ```
 
