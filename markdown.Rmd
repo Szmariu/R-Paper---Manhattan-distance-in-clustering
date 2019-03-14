@@ -13,7 +13,7 @@ The idea for this paper came to me when I first learned about the different dist
 ## Theoretical introduction
 ### Euclidean distance
 
-The **euclidean distance** is "straight line" distance, calculated as a square root of a sum of squared differences between each axis. It is by far the most popular option, and many libraries use it as a default option.
+The **euclidean distance** is "straight line" distance, calculated as a square root of a sum of squared differences between each axis. It is by far the most popular metric, and many libraries use it as a default option.
 
 ```{r, echo=FALSE, out.width = "500px", fig.align = "center"}
 knitr::include_graphics("assets/euclidean.svg")
@@ -63,14 +63,11 @@ options(scipen=999) #avoiding e10 notation
 ```
 
 ## Importing the data set
-This data was cleaned and prepared as a part of an another project. The source is [Kaggle](https://www.kaggle.com/lava18/google-play-store-apps), and it's a scrapping of a sample of Google Play Store apps.
+This data was cleaned and prepared as a part of an another project. It is a scrapping of Google Play Store apps. It can be found on [Kaggle](https://www.kaggle.com/lava18/google-play-store-apps).
 
 ```{r}
 # Importing main data table, NaN are ommited (about 10% of all data)
 mainTable <- na.omit(read.csv("data/clean_googleplaystore.csv",header=TRUE))
-
-# Import the ratings, NaN are ommited (about 30% of all data)
-ratingsTable <- na.omit(read.csv("data/clean_googleplaystore_user_reviews.csv",header=TRUE))
 ```
 
 ## Data overview
@@ -86,9 +83,9 @@ Next, we can see what are the variables in this data set.
 str(mainTable)
 ```
 
-There are 11 columns, 5 of them are continuous, the rest are factors. We'll focus on the continuous variables, since they are the easiest to cluster.
+There are 11 columns, 5 of them are numeric, the rest are factors. We'll focus on the numeric variables, since they are the easiest to cluster.
 
-We can take a look at a summary of these continuous variables.  
+We can take a look at a summary of these numeric variables.  
 ```{r}
 kable(summary(mainTable[,c(2,3,4,7,11)]))
 ```
@@ -135,7 +132,7 @@ timeDistanceMatrix <- microbenchmark(
 ```
 
 ### Results
-One we run the tests, we can display the results in a table format, and as a graph.
+One we run the tests, we can display the results in a table format and as a graph.
 
 ```{r, results='hide'}
 timeDistanceMatrix$expr <- revalue(timeDistanceMatrix$expr, c('dist(clusteringData, method = "euclidean")' = "Euclidean",
@@ -155,7 +152,7 @@ The results are promising - the manhattan distance is noticeably faster than all
 ggplot2::autoplot(timeDistanceMatrix)
 ```
 
-We can see the differences visually. There are strange "tails" on each test - these are outliers that will be analysed later. During the interpretation above, I've compared medians to filter out this strange behavior.
+We can see the differences visually. There are strange "tails" on each test - these are outliers that will be analysed later. I've compared medians in the interpretation above to filter out the effects of this strange behavior.
 
 ### T-test
 
@@ -178,7 +175,7 @@ timeDistanceMatrix %>%
   ggplot(aes(y=time, x=c(1:300))) + geom_point()+ xlab('Time') + ylab('Run time')
 ```
 
-It doesn't seem like that's the case - the outliers are scattered quite evenly across the time. I wasn't able to find any information on this - maybe it is caused by a bug in the dist() function, or an background app taking the focus of the processor for a couple of milliseconds (e.g. update software, or cloud syncing apps).
+It doesn't seem like that's the case - the outliers are scattered quite evenly across the time. I wasn't able to find any information on this - it might be caused by a bug in the dist() function, or an background app taking the focus of the processor for a couple of milliseconds (e.g. update software, or cloud syncing apps).
 
 ## Second performance comparison - CClust
 ### Sample clustering in CClust
@@ -290,7 +287,7 @@ Like in previous experiments, the the resulting difference is statistically sign
 
 # Conclusions
 
-The conclusions for this experiments are not straightforward. The synthetic benchmark - distance matrices, showed that using a manhattan distance metric can lead to a performance increase of around **10%**. This positive effect was also present when using the Clara algorithm, although to a smaller extent (around **3.5%**). On the contrary, in CClust the use of manhattan distance led to a slowdown of about **7.50%**.   
+The conclusions of this experiments are not straightforward. The synthetic benchmark - distance matrices, showed that using a manhattan distance metric can lead to a performance increase of around **10%**. This positive effect was also present when using the Clara algorithm, although to a smaller extent (around **3.5%**). On the contrary, in CClust the use of manhattan distance led to a slowdown of about **7.50%**.   
     
 Generally speaking, much bigger performance differences can be achieved by using a different algorithm or implementation (e.g. one using precompiled C code). In the tests above, the difference between CClust and Clara are quite big - **1.03** seconds for CClust, and **0,28** seconds for Clara. But, if the most efficient algorithm and implementation was already chosen, the results from this paper may suggest that testing the performance of different distance metrics may be beneficial. Especially if the algorithm is expected to run more than once. 
 
