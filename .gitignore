@@ -13,3 +13,5 @@ markdown_files
 *.html
 
 \.RDataTmp
+
+rsconnect/documents/markdown\.Rmd/rpubs\.com/rpubs/Document\.dcf

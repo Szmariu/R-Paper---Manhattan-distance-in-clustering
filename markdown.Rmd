@@ -1,5 +1,5 @@
 ---
-title: "In Defense of Manhattan Distance - On the Performance Impact of Distance Measures in Clustering Analysis"
+title: "In Defense of Manhattan Distance - On the Performance Impact of Distance Metrics in Clustering Analysis"
 author: "Michał Szałański"
 date: "6 lutego 2019"
 output: html_document
@@ -8,9 +8,9 @@ output: html_document
 
 # Introduction
 ## Goal of the paper
-The idea for this paper came to me when I first learned about the different distance measures. During that class it was said, that there isn't a well known use case of the manhattan distance metric. That got me curious, so I search the internet for papers and stack overflow posts that could tell more on this topic. One of the few ideas that I was able to find, was that it may lead to increased performance because it uses modulus, and not exponentiation. In this paper, I would like to test this hypothesis, comparing manhattan distance to euclidean and a few other distance metrics, to see if it makes a difference in both synthetic benchmarks and real-worlds applications. 
+The idea for this paper came to me when I first learned about the different distance metrics. During that class it was said, that there isn't a well known use case of the manhattan distance metric. That got me curious, so I search the internet for papers and stack overflow posts that could tell more on this topic. One of the few ideas that I was able to find, was that it may lead to increased performance because it uses modulus, and not exponentiation. In this paper, I would like to test this hypothesis, comparing manhattan distance to euclidean and a few other distance metrics, to see if it makes a difference in both synthetic benchmarks and real-worlds applications. 
 
-## Theoretical background
+## Theoretical introduction
 ### Euclidean distance
 
 The **euclidean distance** is "straight line" distance, calculated as a square root of a sum of squared differences between each axis. It is by far the most popular option, and many libraries use it as a default option.
@@ -149,10 +149,9 @@ timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s", order = 'medi
 kable(timeDistanceMatrixResults)
 ```
 
-The results are promising - the manhattan distance is noticeably faster than all other distance measures. When comparing medians, the euclidean distance is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[2,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower, the Canberra is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[3,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower. By far the slowest is the Minkowski distance measure - it's **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[4,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower than Manhattan distance. Results of this "synthetic" benchmark show us that, in a best case scenario, we can expect clustering algorithms to run about 10% faster when using manhattan distance compared to euclidean. 
+The results are promising - the manhattan distance is noticeably faster than all other distance metrics. When comparing medians, the euclidean distance is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[2,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower, the Canberra is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[3,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower. By far the slowest is the Minkowski distance metric - it's **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[4,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower than Manhattan distance. Results of this "synthetic" benchmark show us that, in a best case scenario, we can expect clustering algorithms to run about 10% faster when using manhattan distance compared to euclidean. 
 
 ```{r, fig.align='center', message = FALSE}
-
 ggplot2::autoplot(timeDistanceMatrix)
 ```
 
@@ -183,10 +182,14 @@ It doesn't seem like that's the case - the outliers are scattered quite evenly a
 
 ## Second performance comparison - CClust
 ### Sample clustering in CClust
-
+After a synthetic benchmark that was the distance matrices, we can move on to a first real-world example. The CClust function from flexclust package can perform the kmeans clustering. As of today, it supports two distance metrics - euclidean and manhattan. To show how it looks, we can run a sample clustering on our data. Since this package does not support the ggplot2, the resulting graph leaves much to be desired. 
+```{r, fig.align='center', comment=NA,  message = FALSE}
+sampleCClust <- cclust(clusteringData, k = 6, dist = "euclidean", simple = FALSE, save.data=TRUE)
+plot(sampleCClust)
+```
 
 ### Performance evaluation
-After a synthetic benchmark that was the distance matrices, we can move on to a first real-world example. The CClust function from flexclust package can perform the kmeans clustering. As of today, it supports two distance measures - euclidean and manhattan. Both tests were run 200 times, with the number of clusters set to 6 (as was suggested by the NbClust). The results are then saved for further analysis.
+Now, we can evaluate the performance. Both tests were run 200 times, with the number of clusters set to 6 (as was suggested by the NbClust). The results are then saved for further analysis.
 
 ```{r, CCLust performance, cache = TRUE, message=FALSE}
 timeCClust <- microbenchmark(
@@ -213,7 +216,7 @@ The results are somewhat surprising. Contrary to the experiment on the distance 
 ggplot2::autoplot(timeCClust)
 ```
 
-Strange outliers can be observed, similar to these in distance matrices. After a short analisys of the CClust source code, I was able to find that it indeed uses the dist() function, which may have caused the outliers.  
+Strange outliers can be observed, similar to these in distance matrices. After a short analysis of the CClust source code, I was able to find that it indeed uses the dist() function, which may have caused the outliers.  
 
 ### T-test
 
@@ -228,8 +231,8 @@ According to the T-test, we can say that the resulting difference is statistical
 ## Third performance comparison - Clara
 
 ### Sample clustering in Clara
-Below, we can see a sample clustering done in clara. Number of samples, and the sample size was increased from defults, as is suggested in the documentation.   
-The silhouette plot indicates that the resulting clustering is quite good, with a average silhouette width ot 0.82. 
+Below, we can see a sample clustering done in clara. Number of samples, and the sample size was increased from defaults, as is suggested in the documentation.   
+The silhouette plot indicates that the resulting clustering is quite good, with a average silhouette width of 0.82. 
 ```{r, fig.align='center', comment=NA}
 sampleClara<-clara(clusteringData, 6, metric="euclidean", stand=FALSE, samples=50,
                    sampsize=200, trace=0, medoids.x=TRUE,
@@ -240,7 +243,7 @@ fviz_silhouette(sampleClara)
 
 ### Performance evaluation
 
-Simmilarly to CClust, the Clara supports two distance metrics - euclidean and manhattan, the former beeing the default. Since Clara it is noticabely faster than CClust, this test was run 600 times for each metric. Overall it took around 10 minutes to complete. 
+Similarly to CClust, the Clara supports two distance metrics - euclidean and manhattan, the former being the default. Since Clara it is noticeably faster than CClust, this test was run 600 times for each metric. Overall it took around 10 minutes to complete. 
 
 ```{r, Clara performance, cache = TRUE}
 timeClara <- microbenchmark(
@@ -266,14 +269,14 @@ timeClaraResults <- print(timeClara, unit = "s", order = 'median', signif = 3)
 kable(timeClaraResults)
 ```
 
-This time the results are more simmilar to thoes from the syntetic benchmark. When using the euclidean distance instead of manhattan in the clara algorithm, we can expect it to be around **`r sprintf("%1.2f%%", (timeClaraResults[2,5] - timeClaraResults[1,5]) / timeClaraResults[1,5]*100) `** slower. 
+This time the results are more similar to those from the synthetic benchmark. When using the euclidean distance instead of manhattan in the clara algorithm, we can expect it to be around **`r sprintf("%1.2f%%", (timeClaraResults[2,5] - timeClaraResults[1,5]) / timeClaraResults[1,5]*100) `** slower. 
 
 
 ```{r, fig.align='center', message = FALSE}
 ggplot2::autoplot(timeClara)
 ```
 
-
+This time, the outliers are not present. This would suggest that the outliers are a problem with the dist() function, and not the microbenchmarking process, or some other outside influence. 
 
 ### T-test
 
@@ -283,11 +286,21 @@ y <- timeClara %>% filter(timeClara$expr == 'Manhattan') %>% transmute(time = ti
 t.test(x$time,y$time)
 ```
 
-Like in previous experiments, the test results are statistically significant. 
+Like in previous experiments, the the resulting difference is statistically significant. 
 
 # Conclusions
 
-# References
+The conclusions for this experiments are not straightforward. The synthetic benchmark - distance matrices, showed that using a manhattan distance metric can lead to a performance increase of around **10%**. This positive effect was also present when using the Clara algorithm, although to a smaller extent (around **3.5%**). On the contrary, in CClust the use of manhattan distance led to a slowdown of about **7.50%**.   
+    
+Generally speaking, much bigger performance differences can be achieved by using a different algorithm or implementation (e.g. one using precompiled C code). In the tests above, the difference between CClust and Clara are quite big - **1.03** seconds for CClust, and **0,28** seconds for Clara. But, if the most efficient algorithm and implementation was already chosen, the results from this paper may suggest that testing the performance of different distance metrics may be beneficial. Especially if the algorithm is expected to run more than once. 
+
+# Bibliography
+
+- *A comparative study of K Means Algorithm by Different Distance Measures*, Kahkashan Kouser
+- *Comparison of Euclidean Distance Function and Manhattan Distance Function Using K-Mediods*, Md. Mohibullah, Md. Zakir Hossain, Mahmudul Hasan
+- *Distance metric learning, with application to clustering with side-information*, Eric P. Xing, Andrew Y. Ng, Michael I. Jordan and Stuart Russell
+- *Effect of Different Distance Measures on the Performance of K-Means Algorithm: An Experimental Study in Matlab*, Dibya Jyoti Bora, Dr. Anil Kumar Gupta
+- *Study of Euclidean and Manhattan Distance Metrics using Simple K-Means Clustering*, Deepak Sinwar, Rahul Kaushik  
 
 
 

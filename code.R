@@ -62,6 +62,9 @@ timeDistanceMatrix %>%
   ggplot(aes(y=time, x=c(1:200))) + geom_point()
 
     ###### Comparing the speed in CClust ######
+sampleCClust <- cclust(clusteringData, k = 6, dist = "euclidean", simple = FALSE, save.data=TRUE)
+plot(sampleCClust)
+
 # Speed test
 timeCClust <- microbenchmark(
   cclust(clusteringData, k = 6, dist = "euclidean", simple = FALSE, save.data=TRUE),
