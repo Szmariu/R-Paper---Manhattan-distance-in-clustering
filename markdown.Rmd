@@ -1,8 +1,11 @@
 ---
-title: "In Defense of Manhattan Distance - On the Performance Impact of Distance Metrics in Clustering Analysis"
+title: In Defense of Manhattan Distance - On the Performance Impact of Distance Metrics
+  in Clustering Analysis
 author: "Michał Szałański"
-date: "6 lutego 2019"
-output: html_document
+date: "14 marca 2019"
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 
@@ -87,7 +90,8 @@ There are 11 columns, 5 of them are numeric, the rest are factors. We'll focus o
 
 We can take a look at a summary of these numeric variables.  
 ```{r}
-kable(summary(mainTable[,c(2,3,4,7,11)]))
+a <- summary(mainTable[,c(2,3,4,7,11)])
+kable(a)
 ```
 
 The ratings count, app size and price variables have some serious outliers, but this shouldn't affect the results of performance analysis in a significant way. 
@@ -143,7 +147,8 @@ timeDistanceMatrixResults <- print(timeDistanceMatrix, unit = "s", order = 'medi
 ```
 
 ```{r, fig.align='center', message = FALSE}
-kable(timeDistanceMatrixResults)
+a <- timeDistanceMatrixResults
+kable(a)
 ```
 
 The results are promising - the manhattan distance is noticeably faster than all other distance metrics. When comparing medians, the euclidean distance is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[2,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower, the Canberra is **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[3,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower. By far the slowest is the Minkowski distance metric - it's **`r sprintf("%1.2f%%", (timeDistanceMatrixResults[4,5] - timeDistanceMatrixResults[1,5]) / timeDistanceMatrixResults[1,5]*100) `** slower than Manhattan distance. Results of this "synthetic" benchmark show us that, in a best case scenario, we can expect clustering algorithms to run about 10% faster when using manhattan distance compared to euclidean. 
